@@ -23,7 +23,7 @@ github_username:  pascaltoninwit
 
 # Build settings
 markdown: kramdown
-theme: minima
+theme: jekyll-theme-architect
 plugins:
   - jekyll-feed
 

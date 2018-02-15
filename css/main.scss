@@ -1,2 +1,6 @@
-// Import partials from `sass_dir` (defaults to `_sass`)
-@import "swagger";
+@import
+        //"base",
+       // "layout",
+        "swagger"
+       // "syntax-highlighting"
+;
