@@ -1,0 +1,1062 @@
+swagger: '2.0'
+info:
+  title: Redy WOS Api
+  description: API allowing access node in WIT Operation System.
+  version: 1.0.0
+host: localhost
+basePath: '/web/api/v1/wos'
+schemes:
+  - http
+produces:
+  - appliction/json
+paths:
+  /get:
+    get:
+      operationId: WOSGet
+      summary: Retrieve a hierachy of the nods tree
+      parameters:
+        - in: query
+          name: p
+          description: p[ath] -> path of the fetched nod
+          type: string
+          required: false
+          default: '' 
+        - in: query
+          name: i
+          type: integer
+          format: long
+          description: | 
+            i[d] -> id of the fetched nod
+          required: false
+          allowEmptyValue: true
+          default: 0
+        - in: query
+          name: 'd'
+          type: integer
+          description: | 
+            d[epth] of the fetched structure, 0 means to fetch all depth
+            * 0 = object and all descendents
+            * 1 = object fields
+            * 2 = object fields and properties
+            * 3 = object field and properties with childs
+            * ...
+          required: false
+          default: 1
+        - $ref: '#/parameters/optionsParam' 
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      responses:
+        '200':
+          schema:
+            $ref: "#/definitions/NodObject"
+          description: OK
+        '410':
+           $ref: '#/responses/AuthentificationFailed'
+        '404':
+          schema:
+            $ref: "#/definitions/ApiError"
+          description: | 
+            * error code -> 10  
+            * reason -> targetted object not found (path or id not found)
+        '405':
+          $ref: '#/responses/MethodNotAllowed'
+        '408': 
+          $ref: '#/responses/Timeout'
+      security:
+        - basicAuth: []
+        - oauthPasswordAuth: []
+  /search:
+    get:
+      summary: filters a list of nods
+      operationId: WOSSearch
+      description: filters a list of nods, looking recursivly into the wos structure
+      parameters:
+        - in: query
+          name: p
+          description: p[ath] -> path of the root nod from where to filter
+          type: string
+          required: false
+          default: '' 
+        - in: query
+          name: i
+          type: integer
+          description: i[d] -> id of the root nod from where to filter
+          required: false
+          default: 0
+        - in: query
+          name: d
+          type: integer
+          description: |
+           d[epth] -> depth of the fetched structure, 0 means to fetch all depth
+            * 0 = object and all descendents
+            * 1 = object fields
+            * 2 = object fields and properties
+            * 3 = object field and properties with childs
+          required: false
+          default: 0
+        - in: query
+          name: mc
+          type: array
+          collectionFormat: csv
+          items:
+            type: integer
+          description: | 
+            m[atch]c[lasses] -> list of nod object class id 
+            * The nod object 's class id must be in the list 
+          required: false
+          default: ''
+        - in: query
+          name: ic
+          type: array
+          collectionFormat: csv
+          items:
+            type: integer
+          description: | 
+            i[s]c[lasses] -> list of nod object class id 
+            * The nod object class must be or inherit from of these classes 
+          default: ''
+        - in: query
+          name: l
+          type: string
+          description: |
+            l[abel] of the nod to filter
+        - in: query
+          name: n
+          type: string
+          description: |
+            n[ame] -> name / libelle of the nod to filter
+        - in: query
+          name: ir
+          type: boolean
+          description: |
+            i[nclude]r[oot] -> wether to include or nod the root / base filter serialization nod in the response
+          default: false
+        - in: query
+          name: st
+          type: integer
+          description: |
+            s[e]t -> filter all nod registered in the specified attribute set nod id 
+          default: 0 
+        - $ref: '#/parameters/flagsParam'
+        - $ref: '#/parameters/optionsParam'
+        - $ref: '#/parameters/takeParam'
+        - $ref: '#/parameters/skipParam'
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      responses:
+        '200':
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/NodObject"
+          description: OK
+        '410':
+           $ref: '#/responses/AuthentificationFailed'
+        '404':
+          schema:
+            $ref: "#/definitions/ApiError"
+          description: | 
+            * error code -> 10  
+            * reason -> root / base nod object not found ( path or id not found)
+        '405':
+          $ref: '#/responses/MethodNotAllowed'
+        '408': 
+          $ref: '#/responses/Timeout'
+      security:
+        - basicAuth: []
+        - oauthPasswordAuth: []
+  /put:
+    put:
+      operationId: WOSPut
+      summary: Updates fields of a nod object
+      parameters:
+        - in: formData
+          name: p
+          description: p[ath] -> path of the modified nod object 
+          type: string
+          required: false
+          default: '' 
+        - in: formData
+          name: i
+          type: integer
+          description: | 
+            i[d] -> id of the modified nod object
+          required: false
+          default: 0
+        - in: formData
+          name: l
+          type: string
+          description: |
+            l[abel] -> a new label for the nod object
+            * **constraint** -> label update is allowed only for users with a user kind / level at least equal to the nod permissions required for writing
+            * **constraint** -> label update is allowed only for nod objects with the flag "Major" / L
+            * **constraint** -> label string should
+              * Not start with a numeric
+              * Not contains ':' or '.'
+              * Not contains empty spaces 
+              * Should contains alphanumeric caractres
+              => match regular expression : [a-zA-Z_~]+[a-zA-Z1-9_~]* 
+          pattern: ^[a-zA-Z_~]+[a-zA-Z1-9_~]$ 
+          default: ''
+        - in: formData
+          name: n
+          type: string
+          description: |
+            n[ame] -> a new name / libelle for the nod object
+            * **constraint** -> name update is allowed only for users with a user kind / level at least equal to the nod permissions required for writing
+            * **constraint** -> name update is allowed only for nod objects with the flag "Name" / N
+            * **advice** -> after a name update, the property / child with a label as  `np` (_**n[ame]p[roperty**_) should update it's content.
+          default: ''
+        - in: formData
+          name: v
+          type: string
+          description: |
+            v[alue] -> a new value for the nod object
+            * **constraint** -> value update is allowed if the nod object has flag 'W' / Write(eable)
+            * **constraint** -> value update is allowed only for users with a user kind / level at least equal to the nod permissions required for writing
+          default: '' 
+        - $ref: '#/parameters/enabledFlagsParam'
+        - $ref: '#/parameters/disabledFlagsParam'
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      responses:
+        '200':
+          schema:
+            $ref: "#/definitions/NodObject"
+          description: OK
+        '202':
+          schema:
+            $ref: "#/definitions/NodObject"
+          description: Partial result, some values hasn't been updated
+          examples:
+            application/json:
+              i: 411
+              v: False
+        '403':
+          schema:
+            $ref: "#/definitions/ApiError"
+          description: |
+            Invalid value format 
+            * for instance the blob value is not readable as a Base64 string
+          examples:
+            application/json:
+              code: 15
+              message: Bad value format
+        '404':
+           $ref: '#/responses/NodNotFound'
+        '405':
+          $ref: '#/responses/MethodNotAllowed'
+        '410':
+           $ref: '#/responses/AuthentificationFailed'
+        '412':
+          schema:
+            $ref: "#/definitions/ApiError"
+          description: |
+            Constraint violation
+            * Reasons
+              * Not allowed to update the value when the nod object is "ReadOnly"
+              * Not allowed to update the label when the nod object is not "Major"
+              * Not allowed to update the label when the nod object is Owned
+          examples:
+            application/json:
+              code: 17
+              message: Can't update the value of a readonly nod object
+      security:
+        - basicAuth: []
+        - oauthPasswordAuth: []
+  /move:
+    put:
+      operationId: WOSMove
+      summary: Move a nod object to another parent
+      description: |
+        * **constraint** -> Move of an owned nod object is forbidden
+        * **constraint** -> Move of a property nod object is forbidden
+        * **constraint** -> The user kind / level must be at least equal to the nod object write permission.
+        * **constraint** -> The user kind / level must be at least equal to the nod object write permission.
+        * **constraint** -> The user kind / level must be at least equal to the nod object destination write permission.
+        * **constraint** -> Move must repect label unicity rule
+      parameters:
+        - in: formData
+          name: p
+          description: p[ath] -> path of the modified nod object  
+          type: string
+          required: false
+          default: '' 
+        - in: formData
+          name: i
+          type: integer
+          description: i[d] -> id of the modified nod object
+          required: false
+          default: 0
+        - in: formData
+          name: dp
+          description: d[estination]p[ath] -> path of the nod object destination (parent) 
+          type: string
+          required: false
+          default: '' 
+        - in: formData
+          name: di
+          type: integer
+          description: d[estionation]i[d] -> id of the nod object destination (parent)
+          required: false
+          default: 0  
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      responses:
+        '200':
+          schema:
+            $ref: "#/definitions/NodObject"
+          description: OK
+        '404':
+           $ref: '#/responses/NodNotFound'
+        '405':
+          $ref: '#/responses/MethodNotAllowed'
+        '206':
+          schema:
+            $ref: "#/definitions/NodObject"
+          description: Partial result, some values hasn't been serialized
+        '410':
+           $ref: '#/responses/AuthentificationFailed'
+        '412':
+          schema:
+            $ref: "#/definitions/ApiError"
+          description: |
+            Constraint violation
+            * Reasons
+              * Not allowed to move properties"
+              * Not allowed to moved owned object"
+              * Not allowed to move object without required permissions
+          examples:
+            application/json:
+              code: 17
+              message: Not allowed to move propertie
+      security:
+        - basicAuth: []
+        - oauthPasswordAuth: []      
+  /create:
+    post:
+      operationId: WOSCreate
+      summary: Creates a new nod object
+      parameters:
+        - in: formData
+          type: string
+          name: p
+          description: | 
+            p[ath] -> path of the parent nod object _(if **`i[d]`** is not used_)
+            * in order to create new nod, the user kind / level must be a least equal to the parent's nod object write permissions
+          required: false
+          default: '' 
+        - in: formData
+          name: i
+          type: integer
+          description: | 
+            i[d] -> id of the parent nod object
+            * in order to create new nod, the user kind / level must be a least equal to the parent's nod object write permissions
+          required: false
+          default: 0
+        - in: formData
+          name: ci
+          type: integer
+          required: true
+          description: | 
+            c[lass]i[d] -> nod's class
+            * The class can't be marked as `owned`
+        - in: formData
+          name: l
+          type: string
+          required: true
+          maxLength: 19
+          pattern: ^[a-zA-Z_~]+[a-zA-Z1-9_~]$
+          description: |
+            l[abel] -> label for the nod object
+            * **constraint** -> labels string a limited to 19 chars
+            * **constraint** -> label must be unique at it's level (no sbling with the same label)
+            * **constraint** -> supported chars = ^[0-9a-zA-Z_~]+$
+        - in: formData
+          name: n
+          type: string
+          maxLength: 63
+          description: |
+            n[ame] -> name for the nod object
+            * **constraint** -> the nod class must supports name / libelle
+            * **constraint** -> name / libelle string a limited to 63 chars
+          required: false
+          default: ''
+        - $ref: '#/parameters/enabledFlagsParam'
+        - $ref: '#/parameters/disabledFlagsParam'
+        - in: formData
+          name: v
+          type: string
+          required: false
+          description: |
+            v[alue] -> a new value for the nod object
+            * **constraint** -> value update is allowed if the nod object has flag 'W' / Write(eable)
+            * **constraint** -> value update is allowed only for users with a user kind / level at least equal to the nod permissions required for writing
+          default: ''  
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      responses:
+        '200':
+          schema:
+            $ref: "#/definitions/NodObject"
+          description: OK
+        '202':
+          schema:
+            $ref: "#/definitions/NodObject"
+          description: Accepted, some values have not beeing set. _No informations about serialization_
+        '206':
+          schema:
+            $ref: "#/definitions/NodObject"
+          description: Partial result, OK but serialization is not complete (object may be too deep)
+        '403':
+          schema:
+            $ref: "#/definitions/ApiError"
+          description: |
+            Invalid value format 
+            * for instance the blob value is not readable as a Base64 string
+          examples:
+            application/json:
+              code: 15
+              message: Bad value format
+        '404':
+           $ref: '#/responses/NodNotFound'
+        '405':
+          $ref: '#/responses/MethodNotAllowed'
+        '408': 
+          $ref: '#/responses/Timeout'
+        '410':
+           $ref: '#/responses/AuthentificationFailed'
+        '412':
+          schema:
+            $ref: "#/definitions/ApiError"
+          description: |
+            Constraint violation
+            * Reasons
+              * Not allowed to update the value when the nod object is "ReadOnly"
+              * Not allowed to update the label when the nod object is not "Major"
+              * Not allowed to update the label when the nod object is Owned
+          examples:
+            application/json:
+              code: 17
+              message: Can't update the value of a readonly nod object
+      security:
+        - basicAuth: []
+        - oauthPasswordAuth: []      
+  /delete:
+    delete:
+      operationId: WOteSDel
+      summary: Delete a nod object 
+      description: |
+        * **constraint** -> Deletion of an owned nod object is forbidden
+        * **constraint** -> The user kind / level must be at least equal to the deleted nod object write permission.
+      parameters:
+        - in: formData
+          name: p
+          description: p[ath] -> path of the deleted nod object  
+          type: string
+          required: false
+          default: '' 
+        - in: formData
+          name: i
+          type: integer
+          description: i[d] -> id of the deleted nod object
+          required: false
+          default: 0
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      responses:
+        '200':
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+          description: OK
+          examples:
+            application/json:
+              success: true
+        '404':
+           $ref: '#/responses/NodNotFound'
+        '405':
+          $ref: '#/responses/MethodNotAllowed'
+        '410':
+           $ref: '#/responses/AuthentificationFailed'
+        '412':
+          schema:
+            $ref: "#/definitions/ApiError"
+          description: |
+            Constraint violation
+            * Reasons
+              * Not allowed to delete owned nod object"
+          examples:
+            application/json:
+              code: 17
+              message: Not Not allowed to delete owned nod object
+      security:
+        - basicAuth: []
+        - oauthPasswordAuth: []            
+  /classes:
+    get:
+      operationId: WOSClasses
+      summary: Retrieve supported nod object's classes
+      parameters:
+        - in: query
+          name: c
+          description: | 
+            c[lassIds] -> list of class IDs to fetch
+          type: array
+          collectionFormat: csv
+          items:
+            type: integer
+          required: false
+          default: ''
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      responses:
+        '200':
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/NodClass"
+          description: OK
+        '410':
+           $ref: '#/responses/AuthentificationFailed'
+        '405':
+          $ref: '#/responses/MethodNotAllowed'
+      security:
+        - basicAuth: []
+        - oauthPasswordAuth: []
+    
+definitions:
+  ApiError:
+    type: object
+    properties:
+      code:
+        type: integer
+        enum: 
+          - 0
+          - 1
+          - 3
+          - 5
+          - 10
+          - 15
+          - 17
+          - 20
+          - 21
+          - 23
+        description: |
+          | Code | Description                                             | Code HTTP |
+          |------|---------------------------------------------------------|-----------|
+          | 0    | Aucune erreur (cas impossible)                          | 418       |
+          | 1    | Fonctionnalité non implémentée                          | 501       |
+          | 4    | Accès non autorisé                                      | 403       |
+          | 5    | Méthode HTTP non supportée (dépendant du point d'accès) | 405       |
+          | 10   | Elément introuvable                                     | 404       |
+          | 15   | Paramètres incorrects                                   | 415       |
+          | 17   | Violation des contraintes métier                        | 412       |
+          | 20   | Erreur opérationnelle                                   | 500       |
+          | 21   | Erreur opérationnelle partielle                         | 500       |
+          | 23   | Opération annulée / timeout                             | 408       |
+      message:
+        type: string
+        description: error message _(using localisation)_
+  NodFlagsEnum:
+    type: string
+    enum: &NODFLAGSENUM
+      - NE 
+      - F
+      - L
+      - N
+      - O
+      - P
+      - R
+      - U
+      - W 
+    description: |
+      * NE = does not create WODChange events
+      * F  = Fixed, can't be moved or deleted
+      * L  = Editable label (NodMajor)
+      * N  = Editable name
+      * O  = Owned
+      * P  = Persistant
+      * R  = Read allowed
+      * W  = Write allowed
+      * U  = Public
+  NodRightsEnum:
+    type: integer
+    enum: &NODRIGHTSENUM
+      - 0
+      - 1 
+      - 2
+      - 3
+      - 4
+      - 5
+    description: |
+      * 0 = public ~ anonymous
+      * 1 = user ~ guest 
+      * 2 = manager
+      * 3 = staller
+      * 4 = administrator
+      * 5 = impossible
+  NodClass:
+    type: object
+    properties:
+      i:
+        type: integer
+        description: |
+          i[d] -> id of the nod class
+      l:
+        type: string
+        description: l[abel] -> ClassName of the object (only enabled in development internal versions), use with caution
+        example: 'TNodRess'
+      n:
+        type: string
+        description: n[ame] -> display name of the class
+        example: 'Boiler Ressource'
+      f:
+        type: string
+        enum:
+          - ''
+          - d
+          - a
+          - s
+          - b
+        description: |
+          f[ormat] -> nod value type family
+          * '' -> nil
+          * 'd' -> digital / boolean
+          * 'a' -> analogic / number
+          * 's' -> string
+          * 'b' -> blob
+            * blob values are serialized as base64 strings, in order to avoid encoding problems with binairies
+        example: 'd'
+      p:
+        type: integer
+        description : the parent class id
+        example: 1
+      g: 
+        type: object
+        description: g[if] -> meta informations on nod class image representation
+        properties:
+          i:
+            type: integer
+            description: |
+              i[d] -> identifier of the gif image 
+              # TODO - describe the gif URL pattern
+            example: 1974441
+          p:
+            type: string
+            description: |
+              p[ath] -> url path name for accessing to the GIF url
+            example: '/WEB/LIB.ico-1974441'
+          m:
+            type: object
+            description: metadatas on the image object
+            properties:
+              c: 
+                type: string
+                description: content type of the file image
+                example: "Content-Type: image/vnd.microsoft.icon"
+              w:
+                type: integer
+                description: with of the image
+                example: 20
+              h:
+                type: integer
+                description: height of the image
+                example:  20
+      o: 
+        type: boolean
+        description: o[wned] -> a class marked as "owned" can create instances with WOSCreate (construction is private)
+        example: false
+  NodObject:
+    type: object
+    properties: 
+      i: 
+        type: integer
+        description: |
+          i[d] -> unique ID of the nod object
+        example: 36202
+      p:
+        type: string
+        description: | 
+          p[ath] -> path of the nod in the wos structure
+          * exists only one the first/root item if the field **label** is serialized (then the child's path can be computed )
+        maxLength: 127
+        example: ':Easy.Ress.RESS32'
+      l: 
+        type: string
+        maxLength: 19
+        description: | 
+          l[abel] -> label /  of the nod object
+          * unique identifier beetween siblings
+        example: 'RESS32'
+      n: 
+        type: string
+        maxLength: 255
+        description: | 
+          n[ame] -> display name of the nod object
+          * may not exists
+        example: 'South boiler'
+      np:
+        type: string
+        maxLength: 19
+        description: | 
+          n[ame]p[roperty] -> The label of the property / child which contains the value of the **n[ame]** field name. 
+          * Any update on the property / child 's value or the field n[ame] invalidates the other part.
+          * Be carefull, the field n[ame] could differ from it  related property / child s value by adding a prefix of suffix string
+        example: 'name'
+      g: 
+        type: object
+        description: | 
+          g[if] -> Dynamtic image informations which represents the value, mosly gif files
+        properties:
+          i:
+            type: integer
+            description: |
+              i[d] -> identifier of the gif image 
+              # TODO - describe the gif URL pattern
+            example: 1974441
+          p:
+            type: string
+            description: |
+              p[ath] -> url path name for accessing to the GIF url
+            example: '/WEB/LIB.ico-1974441'
+          t: 
+            type: string
+            description: |
+              t[itle] -> title / hint text active which can be displayed with the image
+          m:
+            type: object
+            description: metadatas on the image object
+            properties:
+              c: 
+                type: string
+                description: content type of the file image
+                example: 'image/gif'
+              w:
+                type: integer
+                description: with of the image
+                example: 16
+              h:
+                type: integer
+                description: height of the image
+                example:  16
+      v: 
+        type: string # unknow
+        description: |
+          v[alue] -> value of the nod object
+          * be carefull type depends of the nod type / family
+            * d (digital) = boolean (0=False, 1=True)
+            * a (analogic) = float 
+            * n (blob) = string as base64 encoded
+            * s (strin) = string
+        example: "ZSBtb25kZSBkZSBsYSB06WzpZ2VzdGlvbg=="
+      d:
+        type: string # string
+        format: dateTime
+        description: |
+          d[date] -> datetime of the last nod value change (UTC)
+        example: '2012-01-18T00:00:00Z'
+      cc: # c[hildren]c[ount]
+        type: integer
+        description: | 
+          c[hildren]c[ount] -> number of level 1 child (direct childs)
+          * serialized only if property c[hilds] is not present
+        example: 1
+      a: # a[censtorId]
+        type: integer
+        description: |
+          a[censtorId] -> ID of the parent nod object
+          * field will only be serialized on the first / root serialized nod, this informations could be computed on serialized cihlds
+      f:
+        type: array
+        items:
+          type: string
+          enum: *NODFLAGSENUM
+      ci:
+        type: integer
+        description: |
+          c[lass]i[d] -> class id of the nod object, defined by operation getClasses
+      t:
+        $ref: '#/definitions/NodClass'
+      r:
+        type: 'object'
+        description: | 
+          r[ights] -> required permissions on the nod object 
+        properties:
+          r:
+            type: integer
+            enum: *NODRIGHTSENUM
+            description: |
+              r[ead] -> required permissions for reading the nod fields 
+          w:
+            type: string
+            enum: *NODRIGHTSENUM
+            description: |
+              w[rite] -> required permissions for setting the nod fields
+      s:
+        type: 'object'
+        description: | 
+          s[tats] -> performance counters on the wos eval loop 
+        properties:
+          t:
+            type: integer
+            description: |
+              t[dm] -> (stat) max duration of the task (in ms)
+          l:
+            type: integer
+            description: |
+              l[oop] -> (stat) number of calls of the task from the startup
+          c:
+            type: integer
+            description: |
+              c[ustomer] -> number of subscriptions on the nod value change event
+      c:
+        type: array
+        items:
+          $ref: '#/definitions/NodObject'
+        description: |
+          c[hildren] -> properties / childs of the nod object (also NodObject themselves)
+    discriminator: 'ci'
+    required: 
+      - 'ci'
+  NodRessObject:
+    type: object
+    allOf:
+      - $ref: '#/definitions/NodObject'
+      - properties:
+          rs:
+            type: 'string'
+            description: |
+              r[essource]s[tate] -> nod ressource state text
+          rsg: 
+            type: integer
+            description: |
+              r[essource]s[tate]g[if] -> nod ressource state image representation id
+          rem: 
+            type: string
+            enum: 
+              - A
+              - AD
+              - A,D
+              - AD,D
+              - AD,DD
+            description: |
+              event mode of the nod ressource object
+              * A = appearance
+              * AD = appearance, disappearance
+              * AD,D = broadcasted appearance, disappearance
+              * AD,DD = broadcasted appearance, broadcasted disappearance
+          recid:
+            type: integer
+            description: |
+              rec[ord]id -> last event record id, if any
+          rpt:
+            type: integer
+            description: |
+              r[eflection]p[oin]t -> id of the reflection nod object
+          attribs: 
+            type: object
+            description: 'The nod attributes from /System/Attribs'
+            properties:
+              e:
+                type: integer
+                description: |
+                  e[quipment] -> equipment of the nod ressource object
+              z:
+                type: integer
+                description: |
+                  z[one] -> area of the nod ressource object
+              c:
+                type: integer
+                description: |
+                  c[lass] -> class attributs of the nod ressource object
+              g:
+                type: array
+                items:
+                  type: integer
+                  description: id of the group attribute 
+                description: |
+                  g[roups] -> groups ids of the nod ressource object
+  NodSetObject:
+    type: object
+    allOf:
+      - $ref: '#/definitions/NodObject'
+      - properties:
+          sl:
+            type: 'array'
+            items:
+              type: integer
+              example: [ 1, 444, 871 ]
+            description: |
+              s[et]l[ist] -> list of the nod object id's that are registered in the attribute set.
+parameters:
+  optionsParam: 
+    name: 'o'
+    in: query
+    description: | 
+      [o]ptions -> string of all possible options
+      * all = enable all options 
+      * cc = child count - serialized only if the field c[hilren] is not serialized (then it can be computed from the c[hildren] property)** 
+      * ci = nod class id
+      * D = Champ Date
+      * F = Champ ~~Format~~ Flags = attributs
+      * P = Champ Path
+         Présent uniquement sur le premier élément de la structure envoyée
+      * L = Champ Label (par défaut)  **(par défaut)**
+      * G = Champ GIF du Node avec son IF
+      * GP = Champ Path (URL) du GIF
+      * GI = Champ métadonnées / informations du GIF
+      * GH = Champ Title HINT accompagnant le GIF
+      * N = Champ Name (par défaut)
+      * A = Champ ID du parent / ancêtre  **(par défaut)**
+      * Présent uniquement sur le premier élément de la structure envoyée.
+        i.e. non présent sur les "children"
+      * S = Champs Stats 
+      * T = Champs Type
+      * V = Champ Valeur 
+        Sauf pour les BLOB, ou c’est le nombre de byte du Blob qui est  renvoyé
+      * VB = Champ Valuer Blob (raw) 
+        Si V est non présent, un champ "**s**[i]**z**[e]" pour le nombre de bytes sera  renvoyé
+      * R = Champ droits requis pour le Nod
+      * EXT = Champs étendus par type de nod  
+    required: false
+    type: array
+    collectionFormat: csv
+    minItems: 0
+    items:
+      type: string
+      enum:
+        - all
+        - cc
+        - ci
+        - d
+        - f
+        - p
+        - l
+        - g
+        - gp
+        - gi
+        - gh
+        - n
+        - a
+        - s
+        - t
+        - v
+        - vb
+        - r
+        - ext
+    default: 'ci, cc, l, a'          
+  flagsParam:
+    in: query
+    name: f
+    type: array
+    description: |
+      f[lags] of the nod to filter
+    collectionFormat: csv
+    items:
+      type: string
+      enum: *NODFLAGSENUM
+    default: ''
+  takeParam:
+    in: query
+    name: t
+    type: integer
+    description: |
+      t[ake] -> the number of elements to serialize in the response
+    default: 0
+  skipParam:
+    in: query
+    name: s
+    type: integer
+    description: |
+       s[skip] -> the number of elements to skip before serializing the response
+    default: 0
+  enabledFlagsParam:
+    in: formData
+    type: array
+    name: ef
+    collectionFormat: csv
+    items:
+      type: string
+      enum: *NODFLAGSENUM
+    description: |
+      e[nabled]f[lags] -> flags to add 
+    required: false
+  disabledFlagsParam:  
+    in: formData
+    type: array
+    name: df
+    collectionFormat: csv
+    items:
+      type: string
+      enum: *NODFLAGSENUM
+    description: |
+      e[nabled]f[lags] -> flags to remove  
+responses:
+  AuthentificationFailed:
+    schema:
+      $ref: "#/definitions/ApiError"
+    description: | 
+      Authentification failed. 
+      * Reasons ->           
+        * WSID/SID not provided
+        * Invalid WSID/SID
+        * UserKind insufficient
+    examples:
+      application/json:
+        message: Invalid WSID/SID
+  NodNotFound:
+    schema:
+      $ref: "#/definitions/ApiError"
+    description: | 
+      * error code -> 10  
+      * reason -> nod object not found (for path or id or path provided)
+    examples:
+      application/json:
+        code: 10
+        message: Element not found (bad id or path provided)
+  MethodNotAllowed:
+    schema:
+      $ref: "#/definitions/ApiError"
+    description: |
+      Unsupported HTTP method / verb
+    examples:
+      application/json:
+        code: 5
+        message: Unsupported HTTP method
+  Timeout:
+    schema:
+      $ref: "#/definitions/ApiError"
+    description: | 
+      Request timeout.
+      * The time to build the response may be too long, it has be aborted
+    examples:
+      application/json:
+        code: 23
+        message: TimeOut
+securityDefinitions:
+  basicAuth:
+    type: basic
+  oauthPasswordAuth:
+    type: oauth2
+    flow: password
+    tokenUrl: 'http://localhost/web/api/v1/auth/token'
+    scopes: 
+      write:wos: update nod values
+      read:wos: read nod values
