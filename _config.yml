@@ -23,7 +23,7 @@ github_username:  pascaltoninwit
 
 # Build settings
 markdown: kramdown
-theme: jekyll-theme-architect
+remote_theme: macrod68/jekyll-materialize-starter-template
 plugins:
   - jekyll-feed
 
