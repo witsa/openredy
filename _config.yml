@@ -23,9 +23,9 @@ github_username:  pascaltoninwit
 
 # Build settings
 markdown: kramdown
-remote_theme: macrod68/jekyll-materialize-starter-template
-plugins:
-  - jekyll-feed
+remote_theme: CloudCannon/aviator-jekyll-template
+#plugins:
+#  - jekyll-feed
 
 # Exclude from processing.
 # The following items will not be processed, by default. Create a custom list
